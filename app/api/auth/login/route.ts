@@ -1,0 +1,56 @@
+import { type NextRequest, NextResponse } from "next/server"
+import { comparePassword, createToken } from "@/lib/auth"
+import { getUserByEmail } from "@/lib/firestore"
+
+export async function POST(request: NextRequest) {
+  try {
+    const { email, password } = await request.json()
+
+    // Find user
+    const user = await getUserByEmail(email)
+    if (!user) {
+      return NextResponse.json({ message: "Invalid credentials" }, { status: 401 })
+    }
+
+    // Check password
+    const isValidPassword = await comparePassword(password, user.password)
+    if (!isValidPassword) {
+      return NextResponse.json({ message: "Invalid credentials" }, { status: 401 })
+    }
+
+    // Check if doctor is approved
+    if (user.role === "doctor" && !user.isApproved) {
+      return NextResponse.json({ message: "Account pending approval" }, { status: 401 })
+    }
+
+    // Generate token
+    const token = createToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    })
+
+    // Set cookie
+    const response = NextResponse.json({
+      message: "Login successful",
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    })
+
+    response.cookies.set("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+    })
+
+    return response
+  } catch (error) {
+    console.error("Login error:", error)
+    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+  }
+}
