@@ -24,7 +24,7 @@ import {
   getMockAllAppointments,
   getMockAvailabilityByDoctor,
   getMockStats,
-} from "../mockData"
+} from "./mockData"
 
 // ❗ MOCK MODE CONTROLLED BY .env ONLY
 // ------------------------------------------------------------
