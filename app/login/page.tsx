@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import type React from "react"
 
@@ -28,6 +28,7 @@ export default function Login() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        credentials: "include", // ⭐ REQUIRED TO STORE JWT COOKIE
       })
 
       const data = await res.json()
@@ -36,13 +37,16 @@ export default function Login() {
         toast.success("Login successful!")
 
         // Redirect based on role
-        if (data.user.role === "admin") {
-          router.push("/admin/dashboard")
+        if (data.user.role === "patient" || data.user.role === "user") {
+          router.push("/dashboard")
         } else if (data.user.role === "doctor") {
           router.push("/doctor/dashboard")
+        } else if (data.user.role === "admin") {
+          router.push("/admin/dashboard")
         } else {
-          router.push("/dashboard")
+          toast.error("Invalid role")
         }
+
       } else {
         toast.error(data.message || "Login failed")
       }

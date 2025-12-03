@@ -1,35 +1,42 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { comparePassword, createToken } from "@/lib/auth"
-import { getUserByEmail } from "@/lib/firestore"
+import { comparePassword, createToken } from "@//lib/auth"
+import { getUserByEmail } from "@//lib/mongo"   // <-- MongoDB version
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
 
-    // Find admin user
+    // Fetch admin user from MongoDB
     const user = await getUserByEmail(email)
+
     if (!user || user.role !== "admin") {
-      return NextResponse.json({ message: "Invalid admin credentials" }, { status: 401 })
+      return NextResponse.json(
+        { message: "Invalid admin credentials" },
+        { status: 401 }
+      )
     }
 
-    // Check password
+    // Validate password
     const isValidPassword = await comparePassword(password, user.password)
     if (!isValidPassword) {
-      return NextResponse.json({ message: "Invalid admin credentials" }, { status: 401 })
+      return NextResponse.json(
+        { message: "Invalid admin credentials" },
+        { status: 401 }
+      )
     }
 
-    // Generate token
+    // Create JWT
     const token = createToken({
-      userId: user.id,
+      userId: user._id.toString(),
       email: user.email,
       role: user.role,
     })
 
-    // Set cookie
+    // Send response with cookie
     const response = NextResponse.json({
       message: "Admin login successful",
       user: {
-        id: user.id,
+        id: user._id.toString(),
         name: user.name,
         email: user.email,
         role: user.role,
@@ -46,6 +53,9 @@ export async function POST(request: NextRequest) {
     return response
   } catch (error) {
     console.error("Admin login error:", error)
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 }
+    )
   }
 }

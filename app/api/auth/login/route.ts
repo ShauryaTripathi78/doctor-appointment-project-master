@@ -1,56 +1,49 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { comparePassword, createToken } from "@/lib/auth"
-import { getUserByEmail } from "@/lib/firestore"
+import { getUserByEmail } from "@/lib/mongo"
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const { email, password } = await request.json()
+    const { email, password } = await req.json()
 
-    // Find user
     const user = await getUserByEmail(email)
     if (!user) {
       return NextResponse.json({ message: "Invalid credentials" }, { status: 401 })
     }
 
-    // Check password
-    const isValidPassword = await comparePassword(password, user.password)
-    if (!isValidPassword) {
+    const valid = await comparePassword(password, user.password)
+    if (!valid) {
       return NextResponse.json({ message: "Invalid credentials" }, { status: 401 })
     }
 
-    // Check if doctor is approved
-    if (user.role === "doctor" && !user.isApproved) {
-      return NextResponse.json({ message: "Account pending approval" }, { status: 401 })
-    }
-
-    // Generate token
     const token = createToken({
-      userId: user.id,
+      userId: user._id.toString(),
       email: user.email,
       role: user.role,
     })
 
-    // Set cookie
-    const response = NextResponse.json({
+    const res = NextResponse.json({
       message: "Login successful",
       user: {
-        id: user.id,
-        name: user.name,
+        id: user._id.toString(),
         email: user.email,
         role: user.role,
+        name: user.name,
       },
     })
 
-    response.cookies.set("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-    })
+    res.cookies.set("token", token, {
+  httpOnly: true,
+  secure: false,   // important for localhost
+  sameSite: "lax",
+  path: "/",
+  maxAge: 7 * 24 * 60 * 60,
+})
 
-    return response
+
+    return res
   } catch (error) {
-    console.error("Login error:", error)
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+    console.log("Login error:", error)
+    return NextResponse.json({ message: "Server error" }, { status: 500 })
   }
 }
